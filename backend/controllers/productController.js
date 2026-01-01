@@ -1,5 +1,6 @@
 import Product from "../models/productModel.js";
 import { redis } from "../lib/redis.js";
+import cloudinary from "../lib/cloudinary.js";
 
 export const getAllProducts = async (req, res) => {
   try {
@@ -34,3 +35,65 @@ export const getFeaturedProducts = async (req, res) => {
   }
 }
 
+
+export const createProduct = async (req, res) => {
+  try {
+    const { name, description, price, isFeatured } = req.body;
+
+    let cloudinaryResponse = null; 
+    if(image){
+    cloudinaryResponse = await cloudinary.uploader.upload(image, { folder: 'products'}, )
+
+    const newProduct = new Product({
+      name,
+      description,
+      price,
+      isFeatured,
+      imageURl: cloudinaryResponse?.secure_url ? cloudinaryResponse.secure_url : "",
+      category,
+    })
+    const savedProduct = await newProduct.save();
+    return res.status(201).json({ message: 'Product created successfully', product: savedProduct  
+    });
+
+    }
+  } catch (error) {
+    console.log(`error in product creation controller`);
+    return res.status(500).json({ message: 'Server Error in createProduct Controller' });
+  }
+};
+
+export const deleteProduct = async (req, res) => {
+  try {
+    const product = await Product.findById(req.params.id);
+    if (!product) {
+      return res.status(404).json({ message: 'Product not found' });
+    }
+  if(product.imageURl){
+   const publicId = product.imageURl.split('/').pop().split('.')[0]; // Extract public ID from URL
+   try {
+    await cloudinary.uploader.destroy(`products/${publicId}`);
+   } catch (error) {
+    console.log('Error deleting image from Cloudinary:', error);
+    return res.status(500).json({ message: 'Error deleting image from Cloudinary' });
+   }
+  }
+    await Product.findByIdAndDelete(req.params.id);
+    return res.status(200).json({ message: 'Product deleted successfully'
+    });
+
+
+  } catch (error) {
+    console.log(`errror in deleting product controller`);
+    return res.status(500).json({ message: 'Server Error in deleteProduct Controller' });
+  }
+}
+
+
+export const getRecommendedProducts = async (req, res) => {
+  try {
+    
+  } catch (error) {
+    res.status(500).json({ message: 'Server Error in getRecommendedProducts Controller' });
+  }
+};
