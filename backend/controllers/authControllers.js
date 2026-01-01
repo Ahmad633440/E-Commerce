@@ -115,3 +115,35 @@ export const Logout =async (req, res) => {
     res.status(500).json({message: error.message});
   }
 }
+
+export const refreshToken = async (req, res) => {
+  try {
+    const refreshToken = req.cookies.refreshToken;
+    if(!refreshToken){
+      return res.status(400).json({message: "Refresh token not found"});
+    }
+    const decoded = jwt.verify(refreshToken, process.env.REFRESH_TOKEN_SECRET);
+    const userId = decoded.userId;
+    const storedRefreshToken = await redis.get(`refresh_Token:${userId}`);
+
+    if(storedRefreshToken !== refreshToken){
+      return res.status(401).json({message: "Invalid refresh token"});
+    }
+    const {accessToken, refreshToken: newRefreshToken} = generateToken(userId);
+    await storeRefreshToken(userId, newRefreshToken);
+    //set cookies
+    setCookies(res, accessToken, newRefreshToken);
+    res.status(200).json({message: "Token refreshed successfully"});
+
+  } catch (error) {
+    res.status(500).json({message: error.message});
+  }
+}
+
+// export const getProfile = async (req, res) => {
+//   try {
+     
+//   } catch (error) {
+//     res.status(500).json({message: error.message});
+//   }
+// }
