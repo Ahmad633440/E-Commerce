@@ -1,5 +1,6 @@
 import Stripe from "stripe";
 import Product from "../models/productModel.js";
+import Order from "../models/orderModel.js";
 import Coupon from "../models/couponModel.js";
 import { stripe } from "../lib/stripe.js";
  
@@ -17,6 +18,7 @@ try {
     const amount = Math.round(product.price * 100); // Convert to cents for stripe
     totalAmount += product.price * product.quantity;
 
+    // Return line item object for Stripe
     return {
         price_data: {
             currency: 'usd',
@@ -30,6 +32,7 @@ try {
     };
  });
 
+ // Handle coupon if provided
  let coupon = null;
     if(couponCode) {
         coupon = await Coupon.findOne({ code:couponCode,isActive:true });
@@ -45,6 +48,7 @@ try {
     }
     }
 
+    // Create Stripe Checkout Session
     const session = await stripe.Checkout.SessionsResource.create({
         payment_method_types: ['card'],
         line_items: lineItem,
@@ -56,7 +60,20 @@ try {
                 coupon: await createStripeCoupon(coupon.discountPercentage),
             },
         ] : [],
-        metadata: { userId: req.user._id.toString(),couponCode: coupon ? coupon.code : ""}
+
+        // Store relevant metadata about the order
+        metadata: { 
+            userId: req.user._id.toString(),
+            couponCode: coupon ? coupon.code : "",
+            products: JSON.stringify(
+                products.map((p) => ({
+                 id: p._id,
+                 quantity: p.quantity,
+                 price: p.price,
+                }))
+            ),
+        
+        },
     });
 
     if(totalAmount >= 20000){
@@ -89,4 +106,48 @@ async function createNewCoupon(userId){
         userId: userId,
     });
     await newCoupon.save();
+}
+
+
+export const checkoutSuccess = async (req, res) => {
+    try {
+       const { sessionId } = req.body;
+       const session = await stripe.checkout.sessions.retrieve(session_id);
+       
+       // use mongoose model and check if coupon have change the status after using
+       if(session.payment_status === 'paid'){
+        if(session.metadata.couponCode){
+            await Coupon.findOneAndUpdate({
+                code: session.metadata.couponCode,
+                userid: session.metadata.userId,
+                isActive: true
+            },{ isActive: false });
+        }
+
+    const Products = JSON.parse(session.metadata.products);
+    
+    const newOrder = new Order({
+        user: session.metadata.userId,
+        products: Products.map(product => ({
+        //these items are cominng from orderModel.js  file
+          product: product.id,
+          quantity: product.quantity,
+          price:price.quantity,
+    })),
+     totalAmount: session.amount_total / 100, //convert from cents to dollars
+     stripeSessionId: sessionId
+    })    
+
+    new newOrder.save()
+
+    res.status(200).json({
+        success: true,
+        message: `Order successful, order placed, coupon deactivated if used`,
+        orderid: newOrder._id
+    })
+
+       }
+    } catch (error) {
+        res.status(500).json({ message: 'Server Error ', error: error.message });
+    }
 }
