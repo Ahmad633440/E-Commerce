@@ -6,6 +6,7 @@ import { connectDB } from './lib/db.js';
 import productRoutes from './routes/productRoutes.js'
 import cartRoutes from './routes/cartRoutes.js'
 import couponRoutes from './routes/couponRoutes.js'
+import paymentRoutes from './routes/paymentRoutes.js'
 
 dotenv.config();
 
@@ -21,6 +22,8 @@ app.use('/api/auth', authRoutes);
 app.use('/api/product', productRoutes);
 app.use('/api/cart', cartRoutes);
 app.use('/api/coupon', couponRoutes);
+app.use('/api/payment', paymentRoutes);
+
 
 app.listen(PORT, () => {
   console.log(`Server is running on port:http://localhost:${PORT}`);
