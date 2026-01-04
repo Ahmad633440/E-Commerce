@@ -1,5 +1,4 @@
 import Stripe from "stripe";
-import Product from "../models/productModel.js";
 import Order from "../models/orderModel.js";
 import Coupon from "../models/couponModel.js";
 import { stripe } from "../lib/stripe.js";
