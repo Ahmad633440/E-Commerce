@@ -21,14 +21,13 @@ export const getFeaturedProducts = async (req, res) => {
   }
 // If not found in Redis, fetch from MongoDB
    featuredProducts = await Product.find({ isFeatured: true }).lean();//.lean give plain JS object instead of Mongoose document
-   res.status(200).json(featuredProducts);
-   if (!featuredProducts) {
+   if (!featuredProducts || featuredProducts.length === 0) {
     return res.status(404).json({ message: 'No featured products found' });
    }
    //store in Redis for future requests
    await redis.set("featured_Products", JSON.stringify(featuredProducts), { EX: 3600 }); // Expires in 1 hour
    console.log("Featured Products stored in Redis");
-   res.json(featuredProducts);
+   return res.status(200).json(featuredProducts);
 
   } catch (error) {
     res.status(500).json({ message: 'Server Error in getFeaturedProducts Controller' });
@@ -38,28 +37,28 @@ export const getFeaturedProducts = async (req, res) => {
 
 export const createProduct = async (req, res) => {
   try {
-    const { name, description, price, isFeatured } = req.body;
+    const { name, description, price, image, category } = req.body;
 
-    let cloudinaryResponse = null; 
-    if(image){
-    cloudinaryResponse = await cloudinary.uploader.upload(image, { folder: 'products'}, )
+    if (!image) {
+      return res.status(400).json({ error: "Please provide an image" });
+    }
+
+    let cloudinaryResponse = null;
+    cloudinaryResponse = await cloudinary.uploader.upload(image, { folder: 'products' });
 
     const newProduct = new Product({
       name,
       description,
       price,
-      isFeatured,
-      imageURl: cloudinaryResponse?.secure_url ? cloudinaryResponse.secure_url : "",
       category,
-    })
-    const savedProduct = await newProduct.save();
-    return res.status(201).json({ message: 'Product created successfully', product: savedProduct  
+      image: cloudinaryResponse.secure_url,
     });
 
-    }
+    const savedProduct = await newProduct.save();
+    return res.status(201).json({ message: 'Product created successfully', product: savedProduct });
   } catch (error) {
-    console.log(`error in product creation controller`);
-    return res.status(500).json({ message: 'Server Error in createProduct Controller' });
+    console.log(`error in product creation controller:`, error);
+    return res.status(500).json({ error: error.message || 'Server Error in createProduct Controller' });
   }
 };
 
@@ -119,11 +118,11 @@ export const getProductsByCategory = async (req, res) => {
   try {
      const products = await Product.find({ category: category });
      if(products.length === 0){
-      return res.status(404).json({ message: 'No products found in this category' });
+      return res.status(404).json({ error: 'No products found in this category' });
      }
-      res.status(200).json(products);
+      res.status(200).json({ products });
   } catch (error) {
-    res.status(500).json({ message: 'Server Error in getProductsByCategory Controller' });
+    res.status(500).json({ error: 'Server Error in getProductsByCategory Controller' });
   }
 };
 
@@ -138,7 +137,7 @@ export const toggleFeaturedProduct = async (req, res) => {
   await product.save();
   await updateFeaturedProductsCache();
 
-  res.status(200).json({ product });
+  res.status(200).json({ isFeatured: product.isFeatured });
   } catch (error) {
     res.status(500).json({ message: 'Server Error in toggleFeaturedProduct Controller' });
   }

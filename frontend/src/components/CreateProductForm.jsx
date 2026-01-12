@@ -1,6 +1,8 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
 import { PlusCircle, Upload, Loader } from "lucide-react";
+import { useProductStore } from "../stores/useProductStore";
+import toast from "react-hot-toast";
 
 const categories = ["jeans", "t-shirts", "shoes", "glasses", "jackets", "suits", "bags"];
 
@@ -12,7 +14,7 @@ const CreateProductForm = () => {
 		category: "",
 		image: "",
 	});
-  const [loading, setLoading] = useState(false);
+  const { createProduct } = useProductStore();
 
   const handleImageChange = (e) => {
     const file = e.target.files[0];
@@ -27,10 +29,18 @@ const CreateProductForm = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setLoading(true);
     try {
-      // Add your API call here
-      console.log("Product created:", newProduct);
+      if (!newProduct.image) {
+        toast.error("Please select an image");
+        return;
+      }
+      if (!newProduct.name || !newProduct.description || !newProduct.price || !newProduct.category) {
+        toast.error("Please fill in all fields");
+        return;
+      }
+      
+      await createProduct(newProduct);
+      
       setNewProduct({
         name: "",
         description: "",
@@ -40,8 +50,6 @@ const CreateProductForm = () => {
       });
     } catch (error) {
       console.error("Error creating product:", error);
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -147,19 +155,11 @@ const CreateProductForm = () => {
 					className='w-full flex justify-center py-2 px-4 border border-transparent rounded-md 
 					shadow-sm text-sm font-medium text-white bg-emerald-600 hover:bg-emerald-700 
 					focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-500 disabled:opacity-50'
-					disabled={loading}
 				>
-					{loading ? (
-						<>
-							<Loader className='mr-2 h-5 w-5 animate-spin' aria-hidden='true' />
-							Loading...
-						</>
-					) : (
-						<>
-							<PlusCircle className='mr-2 h-5 w-5' />
-							Create Product
-						</>
-					)}
+					<>
+						<PlusCircle className='mr-2 h-5 w-5' />
+						Create Product
+					</>
 				</button>
 			</form>
 		</motion.div>

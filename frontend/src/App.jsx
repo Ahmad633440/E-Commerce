@@ -5,10 +5,13 @@ import Homepage from './pages/Homepage'
 import SignupPage from './pages/SignupPage'
 import AdminPage from './pages/AdminPage'
 import LoginPage from './pages/LoginPage'
+import CartPage from './pages/CartPage'
 import { Toaster } from 'react-hot-toast'
 import { useUserStore } from './stores/useUserStore.js'
 import { useEffect } from 'react'
 import LoadingSpinner from './components/LoadingSpinner.jsx'
+import CategoryPage from './pages/CategoryPage.jsx'
+
 
 function App() {
   
@@ -36,7 +39,9 @@ if(checkingAuth) return <LoadingSpinner />;
     <Route path='/signup' element={!user ? <SignupPage /> : <Navigate to='/' />} />
     <Route path='/login' element={!user ? <LoginPage /> : <Navigate to='/' />} /> 
     <Route path='/secret-dashboard' element={user?.role === 'admin' ? <AdminPage /> : <Navigate to='/' /> }/>
-    {console.log("User role:", user?.role)}
+    {/* {console.log("User role:", user?.role)} */}
+    <Route path='category/:category' element={<CategoryPage />} />
+    <Route path='/cart' element={user ? <CartPage /> : <Navigate to='/login' />} />
   </Routes>
   </div>
   <Toaster />
